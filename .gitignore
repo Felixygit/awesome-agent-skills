@@ -4,3 +4,7 @@ scripts/__pycache__/
 scripts/download-skills.py
 .DS_Store
 .claude/
+daytrader/.venv/
+daytrader/data/*.sqlite
+__pycache__/
+.pytest_cache/
