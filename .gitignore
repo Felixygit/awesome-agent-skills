@@ -4,3 +4,7 @@ scripts/__pycache__/
 scripts/download-skills.py
 .DS_Store
 .claude/
+
+# Node tooling
+node_modules/
+npm-debug.log*
