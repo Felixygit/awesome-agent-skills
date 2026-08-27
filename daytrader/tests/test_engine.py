@@ -55,10 +55,41 @@ def test_daily_loss_halt():
     assert any((r.get("reject_reason") or "") == "daily loss limit hit" for r in engine.rejects)
 
 
+def test_equity_stays_near_cash_while_open():
+    from daytrader.config import Side
+    from daytrader.models import Position
+    from daytrader.portfolio import Portfolio
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    cfg = BotConfig(starting_cash=50_000)
+    book = Portfolio(cfg)
+    pos = Position(
+        id="x",
+        symbol="SPY",
+        display_symbol="SPY",
+        asset_class=AssetClass.STOCK,
+        side=Side.LONG,
+        quantity=10,
+        entry_price=500,
+        stop=495,
+        target=505,
+        risk_dollars=50,
+        reward_dollars=50,
+        opened_at=datetime(2026, 8, 26, 10, 0, tzinfo=ZoneInfo("America/New_York")),
+        mark=500,
+    )
+    book.open_position(pos)
+    assert abs(book.equity() - 50_000) < 1e-6
+    pos.update_mark(505)
+    assert abs(book.equity() - 50_050) < 1e-6
+
+
 def test_equity_curve_moves_with_trades():
     cfg = BotConfig(slippage_bps=0)
     engine = TradingEngine(cfg)
     engine.run_bars(ScenarioFeed(cfg).bars())
     ys = [eq for _, eq in engine.portfolio.equity_curve]
-    assert len(ys) < 200  # one point per timestamp, not per symbol
+    assert len(ys) < 200
     assert max(ys) - min(ys) > 20
+    assert min(ys) > 49_000

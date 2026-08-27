@@ -44,7 +44,11 @@ class Portfolio:
         return None
 
     def equity(self) -> float:
-        return self.cash + sum(p.unrealized for p in self.positions.values())
+        # Cash is reduced by entry notional on open; add that inventory back plus UPL.
+        inventory = 0.0
+        for pos in self.positions.values():
+            inventory += pos.quantity * pos.entry_price * pos.multiplier + pos.unrealized
+        return self.cash + inventory
 
     def snapshot(self, ts: datetime) -> None:
         self.equity_curve.append((ts, self.equity()))
