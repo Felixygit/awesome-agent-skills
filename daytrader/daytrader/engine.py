@@ -111,7 +111,7 @@ class TradingEngine:
                 "trade",
                 bar.ts,
             )
-        self.portfolio.snapshot(bar.ts)
+        self._snapshot(bar.ts)
 
     def run_bars(self, bars: Iterable[Bar]) -> None:
         self.running = True
@@ -191,10 +191,17 @@ class TradingEngine:
             bar.ts,
         )
 
+    def _snapshot(self, ts) -> None:
+        curve = self.portfolio.equity_curve
+        if curve and curve[-1][0] == ts:
+            curve[-1] = (ts, self.portfolio.equity())
+        else:
+            self.portfolio.snapshot(ts)
+
     def state(self) -> dict:
         curve = [
             {"ts": ts.isoformat(), "equity": round(eq, 2)}
-            for ts, eq in self.portfolio.equity_curve[-240:]
+            for ts, eq in self.portfolio.equity_curve[-400:]
         ]
         return {
             "mode": self.mode,

@@ -53,3 +53,12 @@ def test_daily_loss_halt():
             tripped = True
         engine.on_bar(bar)
     assert any((r.get("reject_reason") or "") == "daily loss limit hit" for r in engine.rejects)
+
+
+def test_equity_curve_moves_with_trades():
+    cfg = BotConfig(slippage_bps=0)
+    engine = TradingEngine(cfg)
+    engine.run_bars(ScenarioFeed(cfg).bars())
+    ys = [eq for _, eq in engine.portfolio.equity_curve]
+    assert len(ys) < 200  # one point per timestamp, not per symbol
+    assert max(ys) - min(ys) > 20
