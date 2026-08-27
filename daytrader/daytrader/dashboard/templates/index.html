@@ -16,7 +16,7 @@
       <div class="mark">R50</div>
       <div>
         <h1>Desk</h1>
-        <p class="tag">Paper day trader · $50 risk · $50 target</p>
+        <p class="tag">$200 ticket · $50 target · 09:30–16:00 ET</p>
       </div>
     </div>
     <div class="session">
@@ -38,7 +38,7 @@
     <article class="panel span-8">
       <header>
         <h2>Equity</h2>
-        <span class="hint">Starting cash $50,000 paper · no live routing</span>
+        <span class="hint">$200 max per ticket · paper · 09:30–16:00 ET</span>
       </header>
       <canvas id="equity" height="160"></canvas>
     </article>
@@ -49,11 +49,14 @@
         <span class="hint">Per-trade cap</span>
       </header>
       <form id="risk-form" class="risk-form">
-        <label>Risk $
-          <input id="risk-in" type="number" min="1" max="500" step="1" />
+        <label>Ticket $
+          <input id="cap-in" type="number" min="1" max="10000" step="1" />
         </label>
         <label>Target $
           <input id="reward-in" type="number" min="1" max="500" step="1" />
+        </label>
+        <label>Max loss $
+          <input id="risk-in" type="number" min="1" max="500" step="1" />
         </label>
         <label>Daily loss $
           <input id="dd-in" type="number" min="1" max="10000" step="1" />
@@ -100,19 +103,24 @@
     <article class="panel span-8">
       <header>
         <h2>Blotter</h2>
-        <span class="hint">Closed paper trades</span>
+        <span class="hint"><a href="/api/journal.csv">Download journal CSV</a> · entries, exits, MAE/MFE</span>
       </header>
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>When</th>
+              <th>Entry</th>
+              <th>Exit</th>
               <th>Symbol</th>
               <th>Class</th>
               <th>Side</th>
               <th>Qty</th>
-              <th>Entry</th>
-              <th>Exit</th>
+              <th>Fill in</th>
+              <th>Fill out</th>
+              <th>Hold</th>
+              <th>Ticket</th>
+              <th>MAE</th>
+              <th>MFE</th>
               <th>Reason</th>
               <th>PnL</th>
             </tr>

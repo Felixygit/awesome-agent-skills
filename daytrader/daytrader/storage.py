@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 from threading import Lock
 
-from daytrader.models import EngineEvent, Trade
+from daytrader.models import EngineEvent, Position, SizedOrder, Trade
 
 
 class Store:
@@ -19,6 +18,24 @@ class Store:
             """
             CREATE TABLE IF NOT EXISTS trades (
                 id TEXT PRIMARY KEY,
+                payload TEXT NOT NULL
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS entries (
+                id TEXT PRIMARY KEY,
+                ts TEXT NOT NULL,
+                payload TEXT NOT NULL
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS rejects (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts TEXT NOT NULL,
                 payload TEXT NOT NULL
             )
             """
@@ -43,6 +60,22 @@ class Store:
             )
             self._conn.commit()
 
+    def save_entry(self, pos: Position) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO entries(id, ts, payload) VALUES (?, ?, ?)",
+                (pos.id, pos.opened_at.isoformat(), json.dumps(pos.to_dict())),
+            )
+            self._conn.commit()
+
+    def save_reject(self, order: SizedOrder) -> None:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO rejects(ts, payload) VALUES (?, ?)",
+                (order.signal.ts.isoformat(), json.dumps(order.to_dict())),
+            )
+            self._conn.commit()
+
     def save_event(self, event: EngineEvent) -> None:
         with self._lock:
             self._conn.execute(
@@ -62,6 +95,16 @@ class Store:
     def all_trades(self) -> list[dict]:
         with self._lock:
             rows = self._conn.execute("SELECT payload FROM trades").fetchall()
+        return [json.loads(r[0]) for r in rows]
+
+    def all_entries(self) -> list[dict]:
+        with self._lock:
+            rows = self._conn.execute("SELECT payload FROM entries ORDER BY ts").fetchall()
+        return [json.loads(r[0]) for r in rows]
+
+    def all_rejects(self) -> list[dict]:
+        with self._lock:
+            rows = self._conn.execute("SELECT payload FROM rejects ORDER BY id").fetchall()
         return [json.loads(r[0]) for r in rows]
 
     def close(self) -> None:

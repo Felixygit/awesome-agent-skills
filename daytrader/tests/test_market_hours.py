@@ -17,10 +17,10 @@ def test_cash_hours():
     assert not cash_session_open(weekend)
 
 
-def test_crypto_always_can_enter():
+def test_crypto_follows_cash_hours():
     night = datetime(2026, 8, 26, 22, 0, tzinfo=ET)
-    assert can_enter(night, AssetClass.CRYPTO, cfg)
-    assert not should_flatten(night, AssetClass.CRYPTO, cfg)
+    assert not can_enter(night, AssetClass.CRYPTO, cfg)
+    assert should_flatten(night, AssetClass.CRYPTO, cfg)
 
 
 def test_stocks_flatten_before_close():

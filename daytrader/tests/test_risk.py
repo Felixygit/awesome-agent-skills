@@ -4,24 +4,25 @@ from daytrader.risk import RiskManager
 from tests.conftest import long_signal, ts
 
 
-def test_stock_size_is_fifty_dollars():
+def test_stock_uses_two_hundred_ticket_and_fifty_target():
     rm = RiskManager(BotConfig())
     order = rm.size(long_signal(100, 98), cash=25_000, open_positions=0, realized_day_pnl=0, day_trades=0)
     assert order.accepted
-    assert order.quantity == 25
-    assert abs(order.risk_dollars - 50) < 1e-9
+    assert order.quantity == 2
+    assert abs(order.notional - 200) < 1e-9
     assert abs(order.reward_dollars - 50) < 1e-9
-    assert abs(order.target - 102) < 1e-9
+    assert abs(order.target - 125) < 1e-9
+    assert order.risk_dollars <= 50.01
 
 
 def test_short_size_mirrors_long():
     rm = RiskManager(BotConfig())
     sig = long_signal(100, 102)
-    sig.side = Side.SHORT  # dataclass isn't frozen on Signal
+    sig.side = Side.SHORT
     order = rm.size(sig, cash=25_000, open_positions=0, realized_day_pnl=0, day_trades=0)
     assert order.accepted
-    assert order.quantity == 25
-    assert abs(order.target - 98) < 1e-9
+    assert order.quantity == 2
+    assert abs(order.target - 75) < 1e-9
 
 
 def test_rejects_when_one_share_exceeds_risk():
@@ -31,7 +32,7 @@ def test_rejects_when_one_share_exceeds_risk():
     assert "above" in (order.reject_reason or "")
 
 
-def test_crypto_fractional_lot():
+def test_crypto_fractional_lot_caps_at_two_hundred():
     rm = RiskManager(BotConfig())
     sig = Signal(
         symbol="BTC-USD",
@@ -46,12 +47,12 @@ def test_crypto_fractional_lot():
     )
     order = rm.size(sig, cash=100_000, open_positions=0, realized_day_pnl=0, day_trades=0)
     assert order.accepted
-    assert order.quantity == 0.5
-    assert abs(order.risk_dollars - 50) < 1e-6
-    assert order.notional == 0.5 * 64_000
+    assert order.notional <= 200.01
+    assert abs(order.reward_dollars - 50) < 1e-9
+    assert abs(order.quantity - 0.0031) < 1e-6
 
 
-def test_option_contract_uses_full_premium_as_risk():
+def test_option_contract_targets_fifty():
     rm = RiskManager(BotConfig())
     sig = Signal(
         symbol="SPY",
@@ -68,8 +69,8 @@ def test_option_contract_uses_full_premium_as_risk():
     )
     order = rm.size(sig, cash=25_000, open_positions=0, realized_day_pnl=0, day_trades=0)
     assert order.accepted
-    assert order.quantity == 1
-    assert abs(order.risk_dollars - 50) < 1e-9
+    assert order.notional <= 200.01
+    assert abs(order.reward_dollars - 50) < 1e-9
     assert abs(order.target - 1.0) < 1e-9
 
 

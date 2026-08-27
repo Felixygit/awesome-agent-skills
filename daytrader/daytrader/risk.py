@@ -1,8 +1,8 @@
-"""Position sizing so each trade risks ~$50 and targets ~$50."""
+"""Size each ticket to ≤$200 capital, ≤$50 risk, and a $50 profit target."""
 
 from __future__ import annotations
 
-from math import floor
+from math import floor, inf
 
 from daytrader.config import AssetClass, BotConfig, Side
 from daytrader.models import Signal, SizedOrder
@@ -32,27 +32,28 @@ class RiskManager:
         stop = signal.stop
         multiplier = signal.multiplier
         lot = signal.lot_size if signal.lot_size > 0 else 1.0
-        per_unit = abs(entry - stop) * multiplier
-        if per_unit <= 1e-12:
-            return self._rejected(signal, display, "stop equals entry")
+        unit_cost = entry * multiplier
+        if entry <= 0 or unit_cost <= 0:
+            return self._rejected(signal, display, "invalid entry")
 
-        raw_qty = self.cfg.risk_dollars / per_unit
-        qty = _floor_to_lot(raw_qty, lot)
+        per_unit = abs(entry - stop) * multiplier
+        buying_power = max(0.0, min(cash - reserved_notional, self.cfg.capital_per_trade))
+        max_by_capital = _floor_to_lot(buying_power / unit_cost, lot)
+        if per_unit <= 1e-12:
+            max_by_risk = inf
+        else:
+            max_by_risk = self.cfg.risk_dollars / per_unit
+        qty = _floor_to_lot(min(max_by_capital, max_by_risk), lot)
         if qty <= 0:
+            if max_by_capital <= 0:
+                return self._rejected(signal, display, "not enough $200 ticket / cash to size")
             return self._rejected(
                 signal,
                 display,
                 f"1 lot risks ${per_unit * lot:.2f}, above ${self.cfg.risk_dollars:.2f} cap",
             )
 
-        buying_power = max(0.0, cash - reserved_notional)
-        max_qty_by_cash = _floor_to_lot(buying_power / (entry * multiplier), lot) if entry > 0 else 0.0
-        if max_qty_by_cash < qty:
-            qty = max_qty_by_cash
-        if qty <= 0:
-            return self._rejected(signal, display, "not enough cash to size the trade")
-
-        actual_risk = qty * per_unit
+        actual_risk = qty * per_unit if per_unit < inf else 0.0
         if actual_risk > self.cfg.risk_dollars * self.cfg.max_risk_overshoot + 1e-9:
             return self._rejected(
                 signal,
@@ -60,28 +61,32 @@ class RiskManager:
                 f"sized risk ${actual_risk:.2f} exceeds ${self.cfg.risk_dollars:.2f}",
             )
 
-        # Keep 1:1 on the dollars that are actually at risk (may be <$50 if cash-capped).
-        reward = min(self.cfg.reward_dollars, actual_risk if actual_risk > 0 else self.cfg.reward_dollars)
-        # User asked for $50 target: if we achieved full risk size, use full reward.
-        if actual_risk >= self.cfg.risk_dollars * 0.99:
-            reward = self.cfg.reward_dollars
+        reward = self.cfg.reward_dollars
         reward_per_unit = reward / (qty * multiplier)
         if signal.side is Side.LONG:
             target = entry + reward_per_unit
+            if actual_risk <= 0:
+                stop = entry - reward_per_unit
         else:
             target = entry - reward_per_unit
+            if actual_risk <= 0:
+                stop = entry + reward_per_unit
 
-        notional = qty * entry * multiplier
+        notional = qty * unit_cost
+        if notional > self.cfg.capital_per_trade + 1e-6:
+            return self._rejected(signal, display, "notional exceeds $200 ticket")
+
         return SizedOrder(
             signal=signal,
             quantity=qty,
             entry=entry,
             stop=stop,
             target=target,
-            risk_dollars=actual_risk,
+            risk_dollars=actual_risk if actual_risk > 0 else min(reward, notional),
             reward_dollars=reward,
             notional=notional,
             display_symbol=display,
+            capital_used=notional,
         )
 
     def _precheck(
@@ -104,8 +109,8 @@ class RiskManager:
             return "no cash"
         if signal.asset_class is AssetClass.OPTION and signal.option_premium is not None:
             debit = signal.option_premium * signal.multiplier * (signal.lot_size or 1)
-            if debit > self.cfg.risk_dollars * self.cfg.max_risk_overshoot + 1e-9:
-                return "option debit exceeds risk cap"
+            if debit > self.cfg.capital_per_trade + 1e-9:
+                return "option debit exceeds $200 ticket"
         return None
 
     def _rejected(self, signal: Signal, display: str, reason: str) -> SizedOrder:
@@ -120,12 +125,12 @@ class RiskManager:
             notional=0,
             display_symbol=display,
             reject_reason=reason,
+            capital_used=0,
         )
 
 
 def _floor_to_lot(qty: float, lot: float) -> float:
-    if lot <= 0:
+    if lot <= 0 or qty <= 0:
         return 0.0
-    # Allow fractional crypto lots (lot may be 0.0001)
     units = floor((qty + 1e-12) / lot)
     return units * lot

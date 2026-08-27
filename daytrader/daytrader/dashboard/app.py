@@ -7,7 +7,7 @@ from itertools import groupby
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -94,6 +94,7 @@ class AssetFlags(BaseModel):
 class RiskPatch(BaseModel):
     risk_dollars: float | None = Field(default=None, gt=0, le=500)
     reward_dollars: float | None = Field(default=None, gt=0, le=500)
+    capital_per_trade: float | None = Field(default=None, gt=0, le=10_000)
     max_daily_loss: float | None = Field(default=None, gt=0, le=10_000)
 
 
@@ -154,14 +155,33 @@ def create_app(cfg: BotConfig | None = None, mode: str = "demo", autostart: bool
             runner.cfg.risk_dollars = float(patch.risk_dollars)
         if patch.reward_dollars is not None:
             runner.cfg.reward_dollars = float(patch.reward_dollars)
+        if patch.capital_per_trade is not None:
+            runner.cfg.capital_per_trade = float(patch.capital_per_trade)
         if patch.max_daily_loss is not None:
             runner.cfg.max_daily_loss = float(patch.max_daily_loss)
         return {
             "ok": True,
             "risk_dollars": runner.cfg.risk_dollars,
             "reward_dollars": runner.cfg.reward_dollars,
+            "capital_per_trade": runner.cfg.capital_per_trade,
             "max_daily_loss": runner.cfg.max_daily_loss,
         }
+
+    @app.get("/api/journal")
+    def journal() -> dict:
+        return {
+            "csv": str(runner.engine.journal.csv_path),
+            "trades": runner.engine.journal.all_trades(),
+            "entries": runner.engine.store.all_entries() if runner.engine.store else [],
+            "rejects": runner.engine.store.all_rejects() if runner.engine.store else [],
+        }
+
+    @app.get("/api/journal.csv")
+    def journal_csv():
+        path = runner.engine.journal.csv_path
+        if not path.exists():
+            raise HTTPException(404, "No journal yet")
+        return FileResponse(path, media_type="text/csv", filename="r50_trades.csv")
 
     @app.post("/api/flatten")
     def flatten() -> dict:

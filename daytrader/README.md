@@ -1,66 +1,68 @@
 # R50 Day Trader
 
-Paper day-trading bot that **targets $50 profit** and **caps risk at $50** per trade across **stocks, options, crypto, and metals**.
+Paper desk that **uses at most $200 per ticket**, **targets $50 profit**, and runs **every weekday 09:30–16:00 America/New_York**.
 
-This is a simulator with a live dashboard. It does **not** send orders to a broker. No strategy can guarantee $50 per trade — the engine sizes each setup so a stop is ~$50 and a target is ~$50. You still lose when the stop hits.
+It does **not** send live broker orders. $50 is a target, not a guarantee. A $200 stock ticket needs a 25% day move to make $50; options are the realistic path for that payoff. Every fill is journaled so you can research a live strategy later.
 
-## What it does
+## Session
 
-- Opening-range breakout on 5-minute bars (volume filter, ATR stop cap)
-- Position size = `$50 / (entry − stop)` so 1R ≈ $50
-- Take-profit placed at +1R (~$50)
-- Long options are defined-risk: debit ≤ $50, target 2× premium
-- Crypto uses fractional size; metals trade as `GLD` / `SLV`
-- Daily loss halt, max positions, end-of-day flatten (cash session)
-- Dark desk UI with blotter, quotes, equity curve, and risk controls
-
-## Quick start
+- Weekdays only
+- Start 09:30 ET (opening-range bars first)
+- Flatten 15:55 ET, session ends 16:00 ET
+- Stocks, options, crypto, and metals all follow those cash hours
+- `python -m daytrader run-daily` waits overnight and runs each session
 
 ```bash
 cd daytrader
-python3 -m venv .venv
-source .venv/bin/activate
 pip install -r requirements.txt
-python -m daytrader serve --mode demo
-```
-
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000). Demo mode replays a designed session so you can watch $50 winners and losers print with markets closed.
-
-```bash
-python -m daytrader backtest --mode demo
+python -m daytrader serve --mode demo          # replay a 09:30–16:00 session
+python -m daytrader run-daily                  # idle until the next weekday open
 python -m pytest -q
 ```
 
-`--mode paper` pulls public Yahoo / Binance bars when the network allows, then paper-trades them. If quotes are unavailable it falls back to the demo session.
+Dashboard: [http://127.0.0.1:8000](http://127.0.0.1:8000). Download the journal from `/api/journal.csv`.
 
-## Risk model
+## Ticket math
 
-| Input | Default |
+| Rule | Default |
 | --- | --- |
-| Risk per trade | $50 |
-| Target per trade | $50 |
+| Capital per trade | **$200** max notional / debit |
+| Profit target | **$50** |
+| Max loss | **$50** |
+| Session | 09:30–16:00 ET weekdays |
 | Starting paper cash | $50,000 |
-| Max positions | 6 |
 | Max daily loss | $200 |
-| Slippage | 2 bps |
 
-Edit `config.yaml` or use the Risk budget panel. Asset-class toggles are on the same panel.
+Size = min($200 / price, $50 / stop distance). Target is always +$50 from the fill.
+
+## Research journal
+
+Each closed trade is appended to `data/journal/trades.csv` and `data/journal/YYYY-MM-DD.json`. SQLite also stores entries, exits, rejects, and engine events.
+
+Recorded fields include:
+
+- entry/exit timestamps, hold time, bars held, session date, weekday, minutes from the open
+- symbol, class, side, qty, ticket size, stop, target, fills
+- PnL, % of ticket, R-multiple, fees, slippage
+- MAE / MFE (worst/best unrealized while in the trade)
+- setup context: opening-range high/low, VWAP, ATR, volume, range %, delta, reason
+
+Use that tape to decide which setups are worth wiring to a live broker.
 
 ## Honest limits
 
-- **Not financial advice.** You can lose money, including more than $50 if a gap jumps the stop (the simulator assumes the stop prints).
-- **Paper only.** There is no Alpaca/IBKR live gate on purpose.
-- **Options** are a delta overlay, not an options chain from an exchange.
-- **Pattern day trader** rules still apply if you ever wire this to a US stock broker.
-- Win rate of ORB is not 100%. A 1:1 system needs >50% wins after costs to grow.
+- Not financial advice. Stops can gap.
+- Paper only. No Alpaca/IBKR live routing.
+- Options are a delta overlay, not an exchange chain.
+- NYSE holidays are not skipped yet (weekends are).
+- A $200 cash-equity ticket making $50 in one day is a 25% move; the journal will show when that target is unrealistic.
 
 ## Layout
 
 ```
-daytrader/           package
-dashboard/           FastAPI + static desk UI
-feeds.py             demo session
-live.py              optional public quotes
-engine.py            paper matching engine
-risk.py              $50 / $50 sizer
+daytrader/strategy.py   opening-range breakout
+daytrader/risk.py       $200 ticket / $50 target sizer
+daytrader/schedule.py   09:30–16:00 ET clock
+daytrader/journal.py    CSV + daily JSON
+daytrader/engine.py     paper matching + MAE/MFE
 ```

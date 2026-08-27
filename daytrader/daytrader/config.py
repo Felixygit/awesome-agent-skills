@@ -33,6 +33,7 @@ class OrderStatus(str, Enum):
 class BotConfig:
     risk_dollars: float = 50.0
     reward_dollars: float = 50.0
+    capital_per_trade: float = 200.0
     starting_cash: float = 50_000.0
     max_positions: int = 6
     max_daily_loss: float = 200.0
@@ -40,6 +41,8 @@ class BotConfig:
     slippage_bps: float = 2.0
     commission_per_fill: float = 0.0
     flatten_minutes_before_close: int = 5
+    cash_hours_only: bool = True
+    wait_for_session: bool = False
     enabled_assets: dict[str, bool] = field(
         default_factory=lambda: {
             "stock": True,
@@ -109,6 +112,7 @@ def load_config(path: str | Path | None = None) -> BotConfig:
     return BotConfig(
         risk_dollars=float(raw.get("risk_dollars", 50.0)),
         reward_dollars=float(raw.get("reward_dollars", 50.0)),
+        capital_per_trade=float(raw.get("capital_per_trade", 200.0)),
         starting_cash=float(raw.get("starting_cash", 50_000.0)),
         max_positions=int(raw.get("max_positions", 6)),
         max_daily_loss=float(raw.get("max_daily_loss", 200.0)),
@@ -116,6 +120,8 @@ def load_config(path: str | Path | None = None) -> BotConfig:
         slippage_bps=float(raw.get("slippage_bps", 2.0)),
         commission_per_fill=float(raw.get("commission_per_fill", 0.0)),
         flatten_minutes_before_close=int(raw.get("flatten_minutes_before_close", 5)),
+        cash_hours_only=bool(raw.get("cash_hours_only", True)),
+        wait_for_session=bool(raw.get("wait_for_session", False)),
         enabled_assets=enabled,
         watchlist=watch,
         bar_minutes=int(strategy.get("bar_minutes", 5)),

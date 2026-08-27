@@ -35,8 +35,14 @@ def cash_session_open(ts: datetime) -> bool:
     return session_open(ts) <= local < session_close(ts)
 
 
+def uses_cash_hours(asset: AssetClass, cfg: BotConfig) -> bool:
+    if not cfg.cash_hours_only:
+        return asset is not AssetClass.CRYPTO
+    return True
+
+
 def should_flatten(ts: datetime, asset: AssetClass, cfg: BotConfig) -> bool:
-    if asset is AssetClass.CRYPTO:
+    if not uses_cash_hours(asset, cfg) and asset is AssetClass.CRYPTO:
         return False
     if not is_weekday(ts):
         return True
@@ -46,11 +52,10 @@ def should_flatten(ts: datetime, asset: AssetClass, cfg: BotConfig) -> bool:
 
 
 def can_enter(ts: datetime, asset: AssetClass, cfg: BotConfig) -> bool:
-    if asset is AssetClass.CRYPTO:
-        return True
     if should_flatten(ts, asset, cfg):
         return False
+    if not uses_cash_hours(asset, cfg) and asset is AssetClass.CRYPTO:
+        return True
     local = to_et(ts)
-    # Need an opening range first.
     range_ready = session_open(ts) + timedelta(minutes=cfg.bar_minutes * cfg.opening_bars)
     return cash_session_open(ts) and local >= range_ready

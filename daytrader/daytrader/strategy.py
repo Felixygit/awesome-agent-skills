@@ -24,9 +24,6 @@ class DaySession:
 
 
 def session_key(ts: datetime, asset: AssetClass) -> str:
-    if asset is AssetClass.CRYPTO:
-        # Crypto "day" is UTC date so the book still flattens conceptually per calendar day.
-        return ts.strftime("%Y-%m-%d")
     return to_et(ts).strftime("%Y-%m-%d")
 
 
@@ -106,6 +103,24 @@ class OpeningRangeStrategy:
         if vw:
             reason = f"{reason}; VWAP {vw:.4f}"
 
+        atr_val = atr(bars, min(self.cfg.atr_period, max(2, len(bars) - 1)))
+        vol_now = bar.volume
+        setup = {
+            "or_high": hi,
+            "or_low": lo,
+            "vwap": vw,
+            "atr": atr_val,
+            "volume": vol_now,
+            "volume_avg": vol_avg,
+            "range_pct": (hi - lo) / mid if mid else None,
+            "minutes_from_open": _minutes_from_open(bar.ts),
+            "day_of_week": to_et(bar.ts).strftime("%A"),
+            "session_date": to_et(bar.ts).strftime("%Y-%m-%d"),
+            "bar_open": bar.open,
+            "bar_high": bar.high,
+            "bar_low": bar.low,
+            "bar_close": bar.close,
+        }
         return Signal(
             symbol=bar.symbol,
             asset_class=bar.asset_class,
@@ -116,33 +131,32 @@ class OpeningRangeStrategy:
             ts=bar.ts,
             multiplier=1.0,
             lot_size=_lot_size(bar.asset_class),
+            setup=setup,
         )
 
     def _option_from_equity(self, equity: Signal, bar: Bar) -> Signal | None:
-        # Defined-risk long option: spend up to $50 of premium.
-        # ATM-ish premium estimated from a 0.50 delta and a 1% of spot time-value stub.
         delta = self.cfg.option_assumed_delta
         if not (self.cfg.option_min_delta <= delta <= self.cfg.option_max_delta):
             return None
         stub = max(bar.close * 0.004, 0.10)
-        premium = stub  # dollars per share; 1 contract = stub * 100
-        debit = premium * self.cfg.option_multiplier
-        if debit > self.cfg.risk_dollars:
-            # Shrink premium model to the risk cap (paper-only: pick a cheaper strike).
-            premium = self.cfg.risk_dollars / self.cfg.option_multiplier
-            debit = self.cfg.risk_dollars
-        if debit <= 0:
+        max_premium = self.cfg.capital_per_trade / self.cfg.option_multiplier
+        premium = min(stub, max_premium)
+        if premium <= 0:
             return None
+        # 25% premium stop so $200 ticket risks $50 when fully sized.
+        stop = premium * (1.0 - self.cfg.risk_dollars / self.cfg.capital_per_trade)
+        stop = max(stop, 0.0)
         right = "C" if equity.side is Side.LONG else "P"
         strike = round(bar.close)
         occ = f"{bar.symbol} {right}{strike}"
-        # For a long option the stop is worthless (full premium); target is 2x premium ($50).
+        setup = dict(equity.setup)
+        setup.update({"option_right": right, "strike": strike, "delta": delta, "premium_model": stub})
         return Signal(
             symbol=bar.symbol,
             asset_class=AssetClass.OPTION,
             side=Side.LONG,
             entry=premium,
-            stop=0.0,
+            stop=stop,
             reason=f"defined-risk {occ} from {equity.reason}",
             ts=bar.ts,
             option_symbol=occ,
@@ -150,13 +164,20 @@ class OpeningRangeStrategy:
             delta=delta,
             multiplier=float(self.cfg.option_multiplier),
             lot_size=1.0,
+            setup=setup,
         )
 
 
 def _lot_size(asset: AssetClass) -> float:
-    if asset is AssetClass.CRYPTO:
-        return 0.0001
-    return 1.0
+    if asset is AssetClass.OPTION:
+        return 1.0
+    return 0.0001
+
+
+def _minutes_from_open(ts: datetime) -> float:
+    local = to_et(ts)
+    open_ts = local.replace(hour=9, minute=30, second=0, microsecond=0)
+    return (local - open_ts).total_seconds() / 60.0
 
 
 def _structure_stop(entry: float, stop: float, side: Side, atr_val: float | None, cfg: BotConfig) -> float:

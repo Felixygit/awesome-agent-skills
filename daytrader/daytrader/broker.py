@@ -36,6 +36,13 @@ class PaperBroker:
             opened_at=ts,
             multiplier=order.signal.multiplier,
             mark=px,
+            capital_used=order.capital_used or order.notional,
+            signal_id=order.signal.id,
+            strategy=order.signal.strategy,
+            entry_reason=order.signal.reason,
+            setup=dict(order.signal.setup),
+            intended_entry=order.entry,
+            slippage_entry=px - order.entry,
         )
 
     def _reanchor(self, order: SizedOrder, fill: float) -> tuple[float, float]:

@@ -48,7 +48,7 @@ def test_option_signal_from_equity_underlying():
     opts = [s for s in signals if s.asset_class is AssetClass.OPTION]
     assert opts
     assert opts[0].option_symbol.startswith("SPY")
-    assert opts[0].entry * opts[0].multiplier <= 50.01
+    assert opts[0].entry * opts[0].multiplier <= 200.01
 
 
 def test_only_one_equity_signal_per_session():

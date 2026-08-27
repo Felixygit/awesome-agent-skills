@@ -23,7 +23,7 @@ function renderKpis(s) {
     ["Equity", money(p.equity), cls(p.equity - p.starting_cash)],
     ["Day P&L", money(p.day_pnl), cls(p.day_pnl)],
     ["Realized", money(p.realized_pnl), cls(p.realized_pnl)],
-    ["Open risk", p.open_positions + " book", ""],
+    ["Ticket cap", money(s.capital_per_trade || 200), ""],
     ["Win rate", ((p.win_rate || 0) * 100).toFixed(0) + "%", ""],
     ["Trades", String(p.closed_trades), ""],
   ];
@@ -58,13 +58,18 @@ function renderTrades(list) {
   const copy = [...list].reverse();
   rows("trades", copy.map((t) => `
     <tr>
-      <td>${(t.closed_at || "").replace("T", " ").slice(0, 19)}</td>
+      <td>${(t.opened_at || "").replace("T", " ").slice(11, 19)}</td>
+      <td>${(t.closed_at || "").replace("T", " ").slice(11, 19)}</td>
       <td>${t.display_symbol}</td>
       <td>${t.asset_class}</td>
       <td>${t.side}</td>
       <td>${t.quantity}</td>
       <td>${px(t.entry_price)}</td>
       <td>${px(t.exit_price)}</td>
+      <td>${Math.round(t.hold_seconds || 0)}s</td>
+      <td>${money(t.capital_used)}</td>
+      <td class="down">${money(t.mae)}</td>
+      <td class="up">${money(t.mfe)}</td>
       <td>${t.exit_reason}</td>
       <td class="${cls(t.pnl)}">${money(t.pnl)}</td>
     </tr>
@@ -147,14 +152,16 @@ async function tick() {
   const res = await fetch("/api/state");
   const s = await res.json();
   $("mode-pill").textContent = s.mode || "demo";
-  $("clock").textContent = (s.last_ts || "").replace("T", " ").slice(0, 19) || "awaiting bars";
+  const sess = s.session || {};
+  $("clock").textContent = (s.last_ts || sess.now_et || "").replace("T", " ").slice(0, 19) || "awaiting bars";
   const live = s.running && !s.paused;
-  $("run-state").textContent = live ? "running" : s.paused ? "paused" : "idle";
+  $("run-state").textContent = live ? (sess.phase || "running") : s.paused ? "paused" : (sess.phase || "idle");
   $("run-state").className = "state " + (live ? "live" : "idle");
   $("disclaimer").textContent = s.disclaimer || "";
   if (!seeded) {
     $("risk-in").value = s.risk_dollars;
     $("reward-in").value = s.reward_dollars;
+    $("cap-in").value = s.capital_per_trade;
     $("dd-in").value = s.max_daily_loss;
     seeded = true;
   }
@@ -177,6 +184,7 @@ $("risk-form").onsubmit = async (e) => {
   await post("/api/risk", {
     risk_dollars: Number($("risk-in").value),
     reward_dollars: Number($("reward-in").value),
+    capital_per_trade: Number($("cap-in").value),
     max_daily_loss: Number($("dd-in").value),
   });
 };

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from daytrader.config import AssetClass, BotConfig
+from daytrader.market_hours import session_open, to_et
 from daytrader.models import Position, Trade, _id
 
 
@@ -78,6 +79,10 @@ class Portfolio:
         self.cash += entry_cost + signed * (proceeds - entry_cost) - fees
         self.realized_pnl += pnl
         self.day_realized += pnl
+        hold = (ts - pos.opened_at).total_seconds()
+        local = to_et(pos.opened_at)
+        setup = pos.setup or {}
+        capital = pos.capital_used or entry_cost
         trade = Trade(
             id=_id(),
             symbol=pos.symbol,
@@ -94,6 +99,37 @@ class Portfolio:
             exit_reason=reason,
             risk_dollars=pos.risk_dollars,
             reward_dollars=pos.reward_dollars,
+            multiplier=pos.multiplier,
+            capital_used=capital,
+            notional=entry_cost,
+            stop=pos.stop,
+            target=pos.target,
+            hold_seconds=hold,
+            bars_held=pos.bars_held,
+            session_date=local.strftime("%Y-%m-%d"),
+            day_of_week=local.strftime("%A"),
+            minutes_from_open=setup.get("minutes_from_open", (local - session_open(pos.opened_at)).total_seconds() / 60.0),
+            pnl_pct_capital=(pnl / capital) if capital else 0.0,
+            r_multiple=(pnl / pos.risk_dollars) if pos.risk_dollars else 0.0,
+            slippage_entry=pos.slippage_entry,
+            slippage_exit=exit_price - (pos.target if reason == "target" else pos.stop if reason == "stop" else pos.mark),
+            mae=pos.mae,
+            mfe=pos.mfe,
+            mae_price=pos.mae_price,
+            mfe_price=pos.mfe_price,
+            strategy=pos.strategy,
+            setup_reason=pos.entry_reason,
+            signal_id=pos.signal_id,
+            or_high=setup.get("or_high"),
+            or_low=setup.get("or_low"),
+            vwap=setup.get("vwap"),
+            atr=setup.get("atr"),
+            volume=setup.get("volume"),
+            volume_avg=setup.get("volume_avg"),
+            range_pct=setup.get("range_pct"),
+            delta=pos.delta,
+            underlying_entry=pos.underlying_entry,
+            setup=setup,
         )
         self.closed.append(trade)
         self.positions.pop(pos.id, None)
