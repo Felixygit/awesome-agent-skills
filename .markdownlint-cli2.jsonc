@@ -1,0 +1,43 @@
+{
+  // markdownlint-cli2 configuration for the Awesome Agent Skills list.
+  //
+  // README.md is a large, generated, HTML-rich curated list. The rules below
+  // are relaxed because they conflict with that intentional structure; every
+  // other markdownlint rule stays active so contributions are still linted for
+  // real issues (heading levels, list-marker consistency, code fences, etc.).
+  "config": {
+    "default": true,
+
+    // Skill descriptions and TOC table rows are single lines that routinely
+    // exceed any fixed width.
+    "MD013": false,
+
+    // Badges, <div>, <details>/<summary>, and <img> banners use inline HTML
+    // throughout the list.
+    "MD033": false,
+
+    // Section headings live inside <summary><h3> HTML blocks, so markdownlint
+    // cannot resolve the Table of Contents anchors even though GitHub can.
+    "MD051": false,
+
+    // The file opens with an HTML banner rather than a top-level heading.
+    "MD041": false,
+
+    // The intro and per-section notes use bold text as lightweight emphasis.
+    "MD036": false,
+
+    // Reference-style link definitions (e.g. badge links) are kept even when
+    // not currently referenced.
+    "MD053": false,
+
+    // The generated list uses extra blank lines and occasional trailing
+    // whitespace/newline spacing for visual separation between sections.
+    "MD012": false,
+    "MD009": false,
+    "MD047": false,
+    "MD022": false,
+    "MD032": false
+  },
+  "globs": ["README.md", "CONTRIBUTING.md"],
+  "ignores": ["node_modules"]
+}

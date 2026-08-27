@@ -1,0 +1,19 @@
+{
+  "name": "awesome-agent-skills",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tooling to validate the Awesome Agent Skills curated list (README.md).",
+  "type": "module",
+  "scripts": {
+    "validate": "node scripts/validate-skills.mjs",
+    "validate:strict": "node scripts/validate-skills.mjs --strict",
+    "lint": "markdownlint-cli2 \"README.md\" \"CONTRIBUTING.md\"",
+    "check": "npm run validate && npm run lint"
+  },
+  "devDependencies": {
+    "markdownlint-cli2": "^0.18.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
