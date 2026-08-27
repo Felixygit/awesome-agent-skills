@@ -1,0 +1,202 @@
+:root {
+  --bg: #0b0d10;
+  --bg-2: #12161c;
+  --panel: #161b22;
+  --line: #2a3140;
+  --text: #e7e1d4;
+  --muted: #8b8375;
+  --gold: #d4a017;
+  --gold-2: #f0c75e;
+  --green: #3dd68c;
+  --red: #ff6b6b;
+  --blue: #7aa2c8;
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+body {
+  font-family: "IBM Plex Sans", sans-serif;
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 500px at 10% -10%, rgba(212, 160, 23, 0.08), transparent 55%),
+    radial-gradient(800px 400px at 100% 0%, rgba(61, 214, 140, 0.05), transparent 50%),
+    var(--bg);
+}
+
+.grain {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' /%3E%3C/filter%3E%3Crect width='80' height='80' filter='url(%23n)' /%3E%3C/svg%3E");
+  z-index: 0;
+}
+
+.top, main, .kpis, .foot { position: relative; z-index: 1; }
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px 8px;
+}
+
+.brand { display: flex; gap: 14px; align-items: center; }
+.mark {
+  width: 52px; height: 52px;
+  border: 1px solid var(--gold);
+  color: var(--gold-2);
+  display: grid; place-items: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: linear-gradient(160deg, #1a1406, #0e0f12);
+}
+.brand h1 { margin: 0; font-size: 22px; letter-spacing: 0.18em; text-transform: uppercase; }
+.tag { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+
+.session { display: flex; gap: 10px; align-items: center; }
+.pill, .state {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.pill { color: var(--gold-2); border-color: #5a4712; }
+.state.live { color: var(--green); border-color: #1f5c3e; }
+.state.idle { color: var(--muted); }
+.clock { font-family: "IBM Plex Mono", monospace; color: var(--blue); }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+button {
+  background: var(--bg-2);
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 8px 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+button:hover { border-color: var(--gold); }
+button.gold { color: #1a1406; background: var(--gold); border-color: var(--gold); font-weight: 600; }
+button.danger { color: var(--red); border-color: #5a2a2a; }
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  padding: 8px 24px 16px;
+}
+.kpi {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+}
+.kpi .lbl { color: var(--muted); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+.kpi .val { font-family: "IBM Plex Mono", monospace; font-size: 22px; margin-top: 6px; }
+.up { color: var(--green); }
+.down { color: var(--red); }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 24px 24px;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 14px 16px 10px;
+  min-width: 0;
+}
+.panel > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.panel h2 { margin: 0; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-2); }
+.hint { color: var(--muted); font-size: 12px; }
+.span-8 { grid-column: span 8; }
+.span-4 { grid-column: span 4; }
+
+canvas { width: 100%; display: block; background: #0e1218; border: 1px solid #222834; }
+
+.table-wrap { overflow: auto; max-height: 280px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; background: var(--panel);
+}
+td {
+  padding: 7px 8px;
+  border-bottom: 1px solid #1d232e;
+  font-family: "IBM Plex Mono", monospace;
+  white-space: nowrap;
+}
+.empty { color: var(--muted); font-family: "IBM Plex Sans", sans-serif; }
+
+.quotes { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow: auto; }
+.quote {
+  display: flex; justify-content: space-between; gap: 8px;
+  border-bottom: 1px solid #1d232e; padding: 6px 0;
+  font-family: "IBM Plex Mono", monospace; font-size: 13px;
+}
+.quote .sym { color: var(--text); }
+.quote .cls { color: var(--muted); font-size: 11px; }
+
+.log {
+  list-style: none; margin: 0; padding: 0;
+  max-height: 280px; overflow: auto;
+  font-family: "IBM Plex Mono", monospace; font-size: 12px;
+}
+.log li { padding: 6px 0; border-bottom: 1px solid #1d232e; color: #c9c1b0; }
+.log .trade { color: var(--gold-2); }
+.log .warn { color: var(--red); }
+
+.risk-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.risk-form label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+input {
+  background: #0e1218; color: var(--text);
+  border: 1px solid var(--line); padding: 8px;
+  font-family: "IBM Plex Mono", monospace;
+}
+.asset-toggles { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.chip {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.chip.on { border-color: var(--gold); color: var(--gold-2); }
+.chip.off { opacity: 0.45; }
+
+.foot { padding: 8px 24px 28px; color: var(--muted); font-size: 12px; max-width: 900px; }
+
+@media (max-width: 1100px) {
+  .kpis { grid-template-columns: repeat(3, 1fr); }
+  .span-8, .span-4 { grid-column: span 12; }
+}
+@media (max-width: 640px) {
+  .kpis { grid-template-columns: repeat(2, 1fr); }
+  .top { padding: 14px; }
+  .grid { padding: 0 14px 20px; }
+}
