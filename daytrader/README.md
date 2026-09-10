@@ -16,6 +16,7 @@ It does **not** send live broker orders. $50 is a target, not a guarantee. A $20
 cd daytrader
 pip install -r requirements.txt
 python -m daytrader serve --mode demo          # replay a 09:30–16:00 session
+python -m daytrader backtest --week            # this week's public 5-minute bars
 python -m daytrader run-daily                  # idle until the next weekday open
 python -m pytest -q
 ```

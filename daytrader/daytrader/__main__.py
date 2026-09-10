@@ -7,13 +7,11 @@ import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-import uvicorn
-
 from daytrader.config import load_config
 from daytrader.engine import TradingEngine
 from daytrader.feeds import ScenarioFeed
 from daytrader.live import load_paper_feed
-from daytrader.schedule import next_session_open, seconds_until, session_phase
+from daytrader.schedule import next_session_open, seconds_until, session_phase, week_bounds
 from daytrader.storage import Store
 
 ET = ZoneInfo("America/New_York")
@@ -35,6 +33,11 @@ def main(argv: list[str] | None = None) -> int:
 
     back = sub.add_parser("backtest", help="Run one session and print stats")
     back.add_argument("--mode", choices=["demo", "paper"], default="demo")
+    back.add_argument(
+        "--week",
+        action="store_true",
+        help="Replay this calendar week (Monday 00:00 ET through now) on public 5-minute bars",
+    )
 
     daily = sub.add_parser(
         "run-daily",
@@ -45,6 +48,7 @@ def main(argv: list[str] | None = None) -> int:
     cfg = load_config(args.config) if args.config else load_config()
 
     if args.cmd == "serve":
+        import uvicorn
         from daytrader.dashboard.app import create_app
 
         host = args.host or cfg.dashboard_host
@@ -57,18 +61,28 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "backtest":
         engine = TradingEngine(cfg, store=Store(cfg.data_dir / "r50.sqlite"))
-        if args.mode == "paper":
+        if args.week:
+            start, end = week_bounds(datetime.now(ET))
+            bars, label = load_paper_feed(cfg, start=start, end=end)
+            engine.mode = f"{label}-week"
+            window = {"start": start.isoformat(), "end": end.isoformat()}
+        elif args.mode == "paper":
             bars, label = load_paper_feed(cfg)
             engine.mode = label
+            window = None
         else:
             bars = ScenarioFeed(cfg).bars()
             engine.mode = "demo"
+            window = None
+        bars = list(bars)
         engine.run_bars(bars)
         stats = engine.portfolio.to_dict()
         print(
             json.dumps(
                 {
                     "mode": engine.mode,
+                    "window": window,
+                    "bars": len(bars),
                     "portfolio": stats,
                     "journal": str(engine.journal.csv_path),
                     "trades": [t.to_dict() for t in engine.portfolio.closed],
@@ -96,7 +110,6 @@ def main(argv: list[str] | None = None) -> int:
             engine.log(f"Cash session start {now.isoformat()}", "info", now)
             engine.run_bars(bars)
             print(json.dumps(engine.portfolio.to_dict()))
-            # Sit until the session is over so we do not immediately re-run.
             while session_phase(datetime.now(ET)) == "open":
                 time.sleep(30)
         return 0
