@@ -16,9 +16,13 @@ It does **not** send live broker orders. $50 is a target, not a guarantee. A $20
 cd daytrader
 pip install -r requirements.txt
 python -m daytrader serve --mode demo          # replay a 09:30–16:00 session
+python -m daytrader backtest --week            # this week's public 5-minute bars
+python -m daytrader backtest --year            # last 365 days on public 1-hour bars
 python -m daytrader run-daily                  # idle until the next weekday open
 python -m pytest -q
 ```
+
+`--year` uses **hourly** bars because Yahoo 5-minute history is only about 60 days. The opening range is the first regular-session hour, so entries start at 10:30 ET. That is not the same as the 5-minute opening-range breakout used for `--week`.
 
 Dashboard: [http://127.0.0.1:8000](http://127.0.0.1:8000). Download the journal from `/api/journal.csv`.
 

@@ -35,3 +35,12 @@ def test_need_opening_range_before_entry():
     too_early = datetime(2026, 8, 26, 9, 35, tzinfo=ET)
     assert cash_session_open(too_early)
     assert not can_enter(too_early, AssetClass.STOCK, cfg)
+
+
+def test_hourly_bars_flatten_on_15_hour_bar():
+    hourly = BotConfig(bar_minutes=60)
+    fifteen = datetime(2026, 8, 26, 15, 30, tzinfo=ET)
+    fourteen = datetime(2026, 8, 26, 14, 30, tzinfo=ET)
+    assert should_flatten(fifteen, AssetClass.STOCK, hourly)
+    assert not can_enter(fifteen, AssetClass.STOCK, hourly)
+    assert not should_flatten(fourteen, AssetClass.STOCK, hourly)

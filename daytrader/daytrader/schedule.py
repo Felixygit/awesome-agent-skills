@@ -60,3 +60,26 @@ def session_status(ts: datetime, cfg: BotConfig | None = None) -> dict:
         "seconds_to_open": 0 if phase == "open" else seconds_until(local, nxt),
         "cash_hours_only": True if cfg is None else bool(cfg.cash_hours_only),
     }
+
+
+def week_bounds(ts: datetime) -> tuple[datetime, datetime]:
+    """Monday 00:00 ET through the later of now or that instant, capped at next Monday."""
+    local = to_et(ts)
+    monday = (local - timedelta(days=local.weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    next_monday = monday + timedelta(days=7)
+    end = local if local < next_monday else next_monday
+    return monday, end
+
+
+def lookback_bounds(ts: datetime, days: int = 365) -> tuple[datetime, datetime]:
+    local = to_et(ts)
+    start = local - timedelta(days=days)
+    return start, local
+
+
+def filter_bars_in_range(bars, start: datetime, end: datetime):
+    start_et = to_et(start)
+    end_et = to_et(end)
+    return [b for b in bars if start_et <= to_et(b.ts) < end_et]
