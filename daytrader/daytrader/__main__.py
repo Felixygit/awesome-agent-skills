@@ -112,7 +112,11 @@ def main(argv: list[str] | None = None) -> int:
         for bar in bars:
             bar_counts[bar.symbol] = bar_counts.get(bar.symbol, 0) + 1
         engine.run_bars(bars)
-        trades = [t.to_dict() for t in engine.portfolio.closed]
+        trades = []
+        for trade in engine.portfolio.closed:
+            row = trade.to_dict()
+            row["pnl"] = trade.pnl
+            trades.append(row)
         payload = {
             "mode": engine.mode,
             "window": window,
