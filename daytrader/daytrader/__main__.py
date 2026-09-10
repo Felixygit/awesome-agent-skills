@@ -153,6 +153,7 @@ def main(argv: list[str] | None = None) -> int:
             engine.log(f"Cash session start {now.isoformat()}", "info", now)
             engine.run_bars(bars)
             print(json.dumps(engine.portfolio.to_dict()))
+            # Sit until the session is over so we do not immediately re-run.
             while session_phase(datetime.now(ET)) == "open":
                 time.sleep(30)
         return 0
