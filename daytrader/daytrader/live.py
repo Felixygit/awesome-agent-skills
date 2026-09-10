@@ -13,12 +13,18 @@ from daytrader.schedule import filter_bars_in_range
 ET = ZoneInfo("America/New_York")
 
 
+def yahoo_interval(bar_minutes: int) -> str:
+    if bar_minutes >= 60:
+        return "1h"
+    return f"{int(bar_minutes)}m"
+
+
 def load_paper_feed(
     cfg: BotConfig,
     start: datetime | None = None,
     end: datetime | None = None,
 ) -> tuple[list[Bar], str]:
-    """Public 5-minute quotes. Falls back to the built-in scenario if offline."""
+    """Public quotes. Falls back to the built-in scenario if offline."""
     live: list[Bar] = []
     live.extend(_yahoo_bars(cfg, AssetClass.STOCK, cfg.symbols_for(AssetClass.STOCK), start, end))
     live.extend(_yahoo_bars(cfg, AssetClass.METAL, cfg.symbols_for(AssetClass.METAL), start, end))
@@ -48,7 +54,7 @@ def _yahoo_bars(
     except ImportError:
         return []
     out: list[Bar] = []
-    interval = f"{cfg.bar_minutes}m"
+    interval = yahoo_interval(cfg.bar_minutes)
     kwargs: dict = {"interval": interval, "progress": False, "auto_adjust": True}
     if start is not None:
         start_et = to_et(start)
@@ -124,7 +130,8 @@ def _crypto_bars(
                     continue
                 cursor = start_ms
                 pages = 0
-                while pages < 20:
+                page_cap = 16 if cfg.bar_minutes >= 60 else 20
+                while pages < page_cap:
                     params = {"symbol": pair, "interval": binance_interval, "limit": 1000}
                     if cursor is not None:
                         params["startTime"] = cursor

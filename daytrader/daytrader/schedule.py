@@ -73,6 +73,12 @@ def week_bounds(ts: datetime) -> tuple[datetime, datetime]:
     return monday, end
 
 
+def lookback_bounds(ts: datetime, days: int = 365) -> tuple[datetime, datetime]:
+    local = to_et(ts)
+    start = local - timedelta(days=days)
+    return start, local
+
+
 def filter_bars_in_range(bars, start: datetime, end: datetime):
     start_et = to_et(start)
     end_et = to_et(end)

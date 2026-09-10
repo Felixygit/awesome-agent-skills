@@ -5,6 +5,7 @@ from daytrader.config import AssetClass
 from daytrader.models import Bar
 from daytrader.schedule import (
     filter_bars_in_range,
+    lookback_bounds,
     next_session_open,
     session_phase,
     session_status,
@@ -66,3 +67,10 @@ def test_filter_bars_keeps_this_week_only():
 
 def to_et_date(ts):
     return ts.astimezone(ET).strftime("%Y-%m-%d")
+
+
+def test_lookback_bounds_365_days():
+    now = datetime(2026, 9, 9, 20, 0, tzinfo=ET)
+    start, end = lookback_bounds(now, days=365)
+    assert end == now
+    assert start.date().isoformat() == "2025-09-09"

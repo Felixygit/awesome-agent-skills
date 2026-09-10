@@ -11,7 +11,14 @@ from daytrader.config import load_config
 from daytrader.engine import TradingEngine
 from daytrader.feeds import ScenarioFeed
 from daytrader.live import load_paper_feed
-from daytrader.schedule import next_session_open, seconds_until, session_phase, week_bounds
+from daytrader.report import trade_summary
+from daytrader.schedule import (
+    lookback_bounds,
+    next_session_open,
+    seconds_until,
+    session_phase,
+    week_bounds,
+)
 from daytrader.storage import Store
 
 ET = ZoneInfo("America/New_York")
@@ -38,6 +45,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Replay this calendar week (Monday 00:00 ET through now) on public 5-minute bars",
     )
+    back.add_argument(
+        "--year",
+        action="store_true",
+        help="Replay the last 365 days on public 1-hour bars (5-minute Yahoo history only covers ~60 days)",
+    )
 
     daily = sub.add_parser(
         "run-daily",
@@ -60,36 +72,63 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "backtest":
-        engine = TradingEngine(cfg, store=Store(cfg.data_dir / "r50.sqlite"))
-        if args.week:
+        compact = False
+        if args.year:
+            cfg.bar_minutes = 60
+            cfg.opening_bars = 1
+            start, end = lookback_bounds(datetime.now(ET), days=365)
+            bars, label = load_paper_feed(cfg, start=start, end=end)
+            if label == "demo-fallback":
+                print(
+                    "Failed to load public 1-hour bars for the last 365 days; refusing demo fallback.",
+                    file=sys.stderr,
+                )
+                return 1
+            mode = f"{label}-year-1h"
+            window = {
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "interval": "1h",
+                "note": "Yahoo 5-minute history is ~60 days; year replay uses 1-hour bars and a 1-hour opening range.",
+            }
+            compact = True
+        elif args.week:
             start, end = week_bounds(datetime.now(ET))
             bars, label = load_paper_feed(cfg, start=start, end=end)
-            engine.mode = f"{label}-week"
-            window = {"start": start.isoformat(), "end": end.isoformat()}
+            mode = f"{label}-week"
+            window = {"start": start.isoformat(), "end": end.isoformat(), "interval": "5m"}
         elif args.mode == "paper":
             bars, label = load_paper_feed(cfg)
-            engine.mode = label
+            mode = label
             window = None
         else:
             bars = ScenarioFeed(cfg).bars()
-            engine.mode = "demo"
+            mode = "demo"
             window = None
+        engine = TradingEngine(cfg, store=Store(cfg.data_dir / "r50.sqlite"))
+        engine.mode = mode
         bars = list(bars)
+        bar_counts: dict[str, int] = {}
+        for bar in bars:
+            bar_counts[bar.symbol] = bar_counts.get(bar.symbol, 0) + 1
         engine.run_bars(bars)
-        stats = engine.portfolio.to_dict()
-        print(
-            json.dumps(
-                {
-                    "mode": engine.mode,
-                    "window": window,
-                    "bars": len(bars),
-                    "portfolio": stats,
-                    "journal": str(engine.journal.csv_path),
-                    "trades": [t.to_dict() for t in engine.portfolio.closed],
-                },
-                indent=2,
-            )
-        )
+        trades = [t.to_dict() for t in engine.portfolio.closed]
+        payload = {
+            "mode": engine.mode,
+            "window": window,
+            "bars": len(bars),
+            "bars_by_symbol": bar_counts,
+            "portfolio": engine.portfolio.to_dict(),
+            "summary": trade_summary(
+                trades,
+                engine.portfolio.equity_curve,
+                engine.portfolio.max_drawdown,
+            ),
+            "journal": str(engine.journal.csv_path),
+        }
+        if not compact:
+            payload["trades"] = trades
+        print(json.dumps(payload, indent=2))
         return 0
 
     if args.cmd == "run-daily":
