@@ -19,6 +19,8 @@ class Portfolio:
         self.day_realized = 0.0
         self.day_trades = 0
         self.equity_curve: list[tuple[datetime, float]] = []
+        self.peak_equity = cfg.starting_cash
+        self.max_drawdown = 0.0
 
     def reset_day_if_needed(self, ts: datetime) -> None:
         key = ts.strftime("%Y-%m-%d")
@@ -51,10 +53,14 @@ class Portfolio:
             inventory += pos.quantity * pos.entry_price * pos.multiplier + pos.unrealized
         return self.cash + inventory
 
+    def mark_equity(self, eq: float) -> None:
+        self.peak_equity = max(self.peak_equity, eq)
+        self.max_drawdown = min(self.max_drawdown, eq - self.peak_equity)
+
     def snapshot(self, ts: datetime) -> None:
-        self.equity_curve.append((ts, self.equity()))
-        if len(self.equity_curve) > 2_000:
-            self.equity_curve = self.equity_curve[-1_500:]
+        eq = self.equity()
+        self.mark_equity(eq)
+        self.equity_curve.append((ts, eq))
 
     def open_position(self, pos: Position) -> None:
         cost = pos.quantity * pos.entry_price * pos.multiplier
@@ -167,6 +173,8 @@ class Portfolio:
             "wins": len(wins),
             "losses": len(losses),
             "win_rate": round(len(wins) / len(self.closed), 3) if self.closed else 0.0,
+            "win_rate_pct": round((len(wins) / len(self.closed)) * 100, 1) if self.closed else 0.0,
+            "max_drawdown": round(self.max_drawdown, 2),
             "avg_win": round(sum(t.pnl for t in wins) / len(wins), 2) if wins else 0.0,
             "avg_loss": round(sum(t.pnl for t in losses) / len(losses), 2) if losses else 0.0,
         }

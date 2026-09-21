@@ -1,7 +1,16 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from daytrader.schedule import next_session_open, session_phase, session_status
+from daytrader.config import AssetClass
+from daytrader.models import Bar
+from daytrader.schedule import (
+    filter_bars_in_range,
+    lookback_bounds,
+    next_session_open,
+    session_phase,
+    session_status,
+    week_bounds,
+)
 
 ET = ZoneInfo("America/New_York")
 
@@ -36,3 +45,32 @@ def test_after_close_goes_to_next_weekday():
     assert session_phase(after) == "closed"
     nxt = next_session_open(after)
     assert nxt.date() == datetime(2026, 8, 27).date()
+
+
+def test_week_bounds_monday_through_now():
+    now = datetime(2026, 9, 9, 20, 3, tzinfo=ET)
+    start, end = week_bounds(now)
+    assert start == datetime(2026, 9, 7, 0, 0, tzinfo=ET)
+    assert end == now
+
+
+def test_filter_bars_keeps_this_week_only():
+    start, end = week_bounds(datetime(2026, 9, 9, 16, 0, tzinfo=ET))
+    bars = [
+        Bar("SPY", AssetClass.STOCK, datetime(2026, 9, 4, 10, 0, tzinfo=ET), 1, 1, 1, 1, 1),
+        Bar("SPY", AssetClass.STOCK, datetime(2026, 9, 8, 10, 0, tzinfo=ET), 1, 1, 1, 1, 1),
+        Bar("SPY", AssetClass.STOCK, datetime(2026, 9, 9, 15, 55, tzinfo=ET), 1, 1, 1, 1, 1),
+    ]
+    kept = filter_bars_in_range(bars, start, end)
+    assert [to_et_date(b.ts) for b in kept] == ["2026-09-08", "2026-09-09"]
+
+
+def to_et_date(ts):
+    return ts.astimezone(ET).strftime("%Y-%m-%d")
+
+
+def test_lookback_bounds_365_days():
+    now = datetime(2026, 9, 9, 20, 0, tzinfo=ET)
+    start, end = lookback_bounds(now, days=365)
+    assert end == now
+    assert start.date().isoformat() == "2025-09-09"

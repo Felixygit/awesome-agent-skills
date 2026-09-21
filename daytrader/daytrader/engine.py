@@ -204,11 +204,13 @@ class TradingEngine:
         )
 
     def _snapshot(self, ts) -> None:
+        eq = self.portfolio.equity()
+        self.portfolio.mark_equity(eq)
         curve = self.portfolio.equity_curve
         if curve and curve[-1][0] == ts:
-            curve[-1] = (ts, self.portfolio.equity())
+            curve[-1] = (ts, eq)
         else:
-            self.portfolio.snapshot(ts)
+            self.portfolio.equity_curve.append((ts, eq))
 
     def _write_session_summary(self) -> None:
         ts = self.last_ts

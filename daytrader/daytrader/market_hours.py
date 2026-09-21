@@ -47,6 +47,8 @@ def should_flatten(ts: datetime, asset: AssetClass, cfg: BotConfig) -> bool:
     if not is_weekday(ts):
         return True
     local = to_et(ts)
+    if cfg.bar_minutes >= 60:
+        return local.hour >= 15
     cutoff = session_close(ts) - timedelta(minutes=cfg.flatten_minutes_before_close)
     return local >= cutoff
 
